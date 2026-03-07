@@ -1,98 +1,72 @@
 # Dash Audio Recorder
 
-Dash Audio Recorder is a Dash component library.
+A professional and customizable audio recording component for Plotly Dash. This component allows users to record audio directly from their browser's microphone, visualize the audio as a waveform in real-time, and send the data back to Python for processing.
 
-Dash Audio Recorder Component
 
-Get started with:
-1. Install Dash and its dependencies: https://dash.plotly.com/installation
-2. Run `python usage.py`
-3. Visit http://localhost:8050 in your web browser
 
-## Contributing
+## Key Features
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md)
+* **Real-time Waveform:** Visualize audio input as it happens.
+* **Two UI Modes:** Support for both a discrete `small` view and an immersive `fullscreen` recording experience.
+* **Flexible Interaction:** Choose between `hold` (Push-To-Talk) or `click` to toggle recording modes.
+* **Memory Efficient:** Sends audio data as a Base64 string directly to Dash, allowing for lightning-fast handling via `dcc.Store` without mandatory disk writes.
+* **Customizable Formats:** Specify preferred MIME types (e.g., `audio/webm`, `audio/mp4`).
 
-### Install dependencies
+## Installation
 
-If you have selected install_dependencies during the prompt, you can skip this part.
+Install the package via pip:
 
-1. Install npm packages
-    ```
-    $ npm install
-    ```
-2. Create a virtual env and activate.
-    ```
-    $ virtualenv venv
-    $ . venv/bin/activate
-    ```
-    _Note: venv\Scripts\activate for windows_
+```bash
+pip install dash-audio-recorder
 
-3. Install python packages required to build components.
-    ```
-    $ pip install -r requirements.txt
-    ```
-4. Install the python packages for testing (optional)
-    ```
-    $ pip install -r tests/requirements.txt
-    ```
 
-### Write your component code in `src/lib/components/DashAudioRecorder.react.js`.
+### Quick Start
+Here is a minimal example of how to use the component in a Dash application.
 
-- The demo app is in `src/demo` and you will import your example component code into your demo app.
-- Test your code in a Python environment:
-    1. Build your code
-        ```
-        $ npm run build
-        ```
-    2. Run and modify the `usage.py` sample dash app:
-        ```
-        $ python usage.py
-        ```
-- Write tests for your component.
-    - A sample test is available in `tests/test_usage.py`, it will load `usage.py` and you can then automate interactions with selenium.
-    - Run the tests with `$ pytest tests`.
-    - The Dash team uses these types of integration tests extensively. Browse the Dash component code on GitHub for more examples of testing (e.g. https://github.com/plotly/dash-core-components)
-- Add custom styles to your component by putting your custom CSS files into your distribution folder (`dash_audio_recorder`).
-    - Make sure that they are referenced in `MANIFEST.in` so that they get properly included when you're ready to publish your component.
-    - Make sure the stylesheets are added to the `_css_dist` dict in `dash_audio_recorder/__init__.py` so dash will serve them automatically when the component suite is requested.
-- [Review your code](./review_checklist.md)
+import dash_audio_recorder
+from dash import Dash, html, Input, Output, callback
 
-### Create a production build and publish:
+app = Dash(__name__)
 
-1. Build your code:
-    ```
-    $ npm run build
-    ```
-2. Create a Python distribution
-    ```
-    $ python setup.py sdist bdist_wheel
-    ```
-    This will create source and wheel distribution in the generated the `dist/` folder.
-    See [PyPA](https://packaging.python.org/guides/distributing-packages-using-setuptools/#packaging-your-project)
-    for more information.
+app.layout = html.Div([
+    html.H2("Dash Audio Recorder Demo"),
+    
+    dash_audio_recorder.DashAudioRecorder(
+        id='audio-recorder',
+        audioType='audio/webm',
+        visualMode='fullscreen',  # Options: 'fullscreen', 'small'
+        recordMode='hold'         # Options: 'hold', 'click'
+    ),
+    
+    html.Div(id='output-status', style={'marginTop': '20px'}),
+    html.Audio(id='audio-player', controls=True, style={'marginTop': '10px'})
+])
 
-3. Test your tarball by copying it into a new environment and installing it locally:
-    ```
-    $ pip install dash_audio_recorder-0.0.1.tar.gz
-    ```
+@callback(
+    Output('audio-player', 'src'),
+    Output('output-status', 'children'),
+    Input('audio-recorder', 'audioData')
+)
+def handle_audio(audio_data):
+    if not audio_data:
+        return "", "Waiting for recording..."
+    
+    # audio_data is a base64 string that can be used directly as a source
+    return audio_data, "Recording received! You can play it back below:"
 
-4. If it works, then you can publish the component to NPM and PyPI:
-    1. Publish on PyPI
-        ```
-        $ twine upload dist/*
-        ```
-    2. Cleanup the dist folder (optional)
-        ```
-        $ rm -rf dist
-        ```
-    3. Publish on NPM (Optional if chosen False in `publish_on_npm`)
-        ```
-        $ npm publish
-        ```
-        _Publishing your component to NPM will make the JavaScript bundles available on the unpkg CDN. By default, Dash serves the component library's CSS and JS locally, but if you choose to publish the package to NPM you can set `serve_locally` to `False` and you may see faster load times._
+if __name__ == '__main__':
+    app.run_server(debug=True)
 
-5. Share your component with the community! https://community.plotly.com/c/dash
-    1. Publish this repository to GitHub
-    2. Tag your GitHub repository with the plotly-dash tag so that it appears here: https://github.com/topics/plotly-dash
-    3. Create a post in the Dash community forum: https://community.plotly.com/c/dash
+
+### Component Properties (Props)
+
+
+Prop,Type,Default,Description
+id,string,None,The ID used to identify this component in Dash callbacks.
+audioData,string,None,The recorded audio data as a Base64 encoded string. Read-only from Python.
+audioType,string,'audio/webm',"The MIME type for the audio recording (e.g., audio/webm, audio/mp4)."
+visualMode,string,'fullscreen',UI style: 'fullscreen' (overlay) or 'small' (inline block).
+recordMode,string,'hold',Interaction style: 'hold' (push-to-talk) or 'click' (toggle).
+
+### License
+This project is licensed under the MIT License.
