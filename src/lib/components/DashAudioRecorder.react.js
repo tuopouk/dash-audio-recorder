@@ -11,7 +11,7 @@ const MicIcon = ({ isRecording }) => (
 );
 
 const DashAudioRecorder = (props) => {
-    const { id, setProps, audioType, visualMode, recordMode } = props;
+    const { id, setProps, audioType, visualMode, recordMode, echoCancellation, noiseSuppression, autoGainControl } = props;
     const [isRecording, setIsRecording] = useState(false);
     
     const canvasRef = useRef(null);
@@ -19,11 +19,8 @@ const DashAudioRecorder = (props) => {
     const audioContextRef = useRef(null);
     const animationRef = useRef(null);
     const chunksRef = useRef([]);
-    
-    // Tämä ref pitää kirjaa siitä, onko nappi juuri nyt oikeasti pohjassa
     const isPressingRef = useRef(false);
 
-    // Globaali kuuntelija: lopettaa äänityksen vaikka hiiri päästettäisiin napin ulkopuolella
     useEffect(() => {
         const handleGlobalUp = () => {
             if (recordMode === 'hold') {
@@ -31,10 +28,8 @@ const DashAudioRecorder = (props) => {
                 stopRecording();
             }
         };
-        
         window.addEventListener('mouseup', handleGlobalUp);
         window.addEventListener('touchend', handleGlobalUp);
-        
         return () => {
             window.removeEventListener('mouseup', handleGlobalUp);
             window.removeEventListener('touchend', handleGlobalUp);
@@ -43,14 +38,18 @@ const DashAudioRecorder = (props) => {
 
     const startRecording = async () => {
         if (isRecording) return;
-        
-        // Merkitään, että nappia painetaan
         if (recordMode === 'hold') isPressingRef.current = true;
         
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // TÄSSÄ UUSI TAIKA: Pyydetään mikrofonia joko raakana (AI:ta varten) tai suodatettuna
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: echoCancellation,
+                    noiseSuppression: noiseSuppression,
+                    autoGainControl: autoGainControl
+                } 
+            });
             
-            // Jos käyttäjä ehti päästää napista irti ennen kuin mikrofoni aukesi, perutaan!
             if (recordMode === 'hold' && !isPressingRef.current) {
                 stream.getTracks().forEach(track => track.stop());
                 return;
@@ -65,7 +64,11 @@ const DashAudioRecorder = (props) => {
             let mimeType = audioType;
             if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = ''; 
 
-            mediaRecorderRef.current = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+            // TÄSSÄ UUSI TAIKA 2: Pakotetaan korkea äänenlaatu (128 kbps), jotta Whisper saa tarkempaa dataa
+            const recorderOptions = mimeType ? { mimeType } : {};
+            recorderOptions.audioBitsPerSecond = 128000; 
+
+            mediaRecorderRef.current = new MediaRecorder(stream, recorderOptions);
             chunksRef.current = [];
 
             mediaRecorderRef.current.ondataavailable = (e) => {
@@ -179,16 +182,9 @@ const DashAudioRecorder = (props) => {
 
     let buttonEvents = {};
     if (recordMode === 'hold') {
-        // Nyt meidän ei tarvitse kuunnella napin onMouseUpia tai onMouseLeavea ollenkaan!
-        // Globaali ikkunan kuuntelija hoitaa lopettamisen.
-        buttonEvents = {
-            onMouseDown: handleStart,
-            onTouchStart: handleStart
-        };
+        buttonEvents = { onMouseDown: handleStart, onTouchStart: handleStart };
     } else {
-        buttonEvents = {
-            onClick: isRecording ? handleStop : handleStart
-        };
+        buttonEvents = { onClick: isRecording ? handleStop : handleStart };
     }
 
     return (
@@ -206,11 +202,15 @@ const DashAudioRecorder = (props) => {
     );
 }
 
+// Oletuksena otetaan selaimen suodattimet POIS PÄÄLTÄ tekoälyä varten
 DashAudioRecorder.defaultProps = {
     audioData: null,
     audioType: 'audio/webm',
     visualMode: 'fullscreen',
-    recordMode: 'hold'
+    recordMode: 'hold',
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false
 };
 
 DashAudioRecorder.propTypes = {
@@ -219,6 +219,9 @@ DashAudioRecorder.propTypes = {
     audioType: PropTypes.string,
     visualMode: PropTypes.string,
     recordMode: PropTypes.string,
+    echoCancellation: PropTypes.bool,
+    noiseSuppression: PropTypes.bool,
+    autoGainControl: PropTypes.bool,
     setProps: PropTypes.func
 };
 

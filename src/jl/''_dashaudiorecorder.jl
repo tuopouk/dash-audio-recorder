@@ -11,11 +11,14 @@ Keyword arguments:
 - `id` (String; optional)
 - `audioData` (String; optional)
 - `audioType` (String; optional)
+- `autoGainControl` (Bool; optional)
+- `echoCancellation` (Bool; optional)
+- `noiseSuppression` (Bool; optional)
 - `recordMode` (String; optional)
 - `visualMode` (String; optional)
 """
 function ''_dashaudiorecorder(; kwargs...)
-        available_props = Symbol[:id, :audioData, :audioType, :recordMode, :visualMode]
+        available_props = Symbol[:id, :audioData, :audioType, :autoGainControl, :echoCancellation, :noiseSuppression, :recordMode, :visualMode]
         wild_props = Symbol[]
         return Component("''_dashaudiorecorder", "DashAudioRecorder", "dash_audio_recorder", available_props, wild_props; kwargs...)
 end

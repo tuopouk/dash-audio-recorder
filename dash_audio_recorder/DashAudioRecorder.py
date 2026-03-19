@@ -27,6 +27,12 @@ Keyword arguments:
 
 - audioType (string; default 'audio/webm')
 
+- autoGainControl (boolean; default False)
+
+- echoCancellation (boolean; default False)
+
+- noiseSuppression (boolean; default False)
+
 - recordMode (string; default 'hold')
 
 - visualMode (string; default 'fullscreen')"""
@@ -43,11 +49,14 @@ Keyword arguments:
         audioType: typing.Optional[str] = None,
         visualMode: typing.Optional[str] = None,
         recordMode: typing.Optional[str] = None,
+        echoCancellation: typing.Optional[bool] = None,
+        noiseSuppression: typing.Optional[bool] = None,
+        autoGainControl: typing.Optional[bool] = None,
         **kwargs
     ):
-        self._prop_names = ['id', 'audioData', 'audioType', 'recordMode', 'visualMode']
+        self._prop_names = ['id', 'audioData', 'audioType', 'autoGainControl', 'echoCancellation', 'noiseSuppression', 'recordMode', 'visualMode']
         self._valid_wildcard_attributes =            []
-        self.available_properties = ['id', 'audioData', 'audioType', 'recordMode', 'visualMode']
+        self.available_properties = ['id', 'audioData', 'audioType', 'autoGainControl', 'echoCancellation', 'noiseSuppression', 'recordMode', 'visualMode']
         self.available_wildcard_properties =            []
         _explicit_args = kwargs.pop('_explicit_args')
         _locals = locals()

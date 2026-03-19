@@ -1,90 +1,62 @@
 import dash_audio_recorder
-from dash import Dash, html, dcc, Input, Output, State, callback
-import base64
-import os
+from dash import Dash, html, dcc, Input, Output, callback
 
 app = Dash(__name__)
 
 app.layout = html.Div([
-    html.H2("Ammattimainen äänitin"),
+    html.H2("Äänenlaadun testipenkki (Whisper-optimointi)"),
+    html.P("Testaa, miltä ääni kuulostaa selaimen suodattimilla ja ilman (raakana)."),
     
-    # 1. VALINTAKYTKIN: Miten ääni halutaan käsitellä
+    # Valikot filttereiden päälle/pois laittamiseen
     html.Div([
-        html.Label("Valitse käsittelytapa:", style={'fontWeight': 'bold'}),
-        dcc.RadioItems(
-            id='save-mode',
+        html.Label("Selaimen suodattimet (Kokeile ottaa kaikki pois Whisperille):", style={'fontWeight': 'bold'}),
+        dcc.Checklist(
+            id='audio-filters',
             options=[
-                {'label': ' Pidä vain välimuistissa (Nopea, menee dcc.Storeen)', 'value': 'memory'},
-                {'label': ' Tallenna kovalevylle (Luo fyysisen tiedoston)', 'value': 'disk'}
+                {'label': ' Kaiunpoisto (Echo Cancellation)', 'value': 'echo'},
+                {'label': ' Taustakohinan vaimennus (Noise Suppression)', 'value': 'noise'},
+                {'label': ' Automaattinen tasonsäätö (Auto Gain)', 'value': 'gain'}
             ],
-            value='memory', # Oletuksena käytetään nopeaa muistia
-            style={'marginBottom': '30px', 'marginTop': '10px'}
+            value=[], # Oletuksena tyhjä = kaikki filtterit POIS (raaka ääni)
+            style={'marginTop': '10px'}
         )
-    ]),
+    ], style={'backgroundColor': '#f0f0f0', 'padding': '15px', 'borderRadius': '8px', 'marginBottom': '20px'}),
+
+    # Komponentti ladataan tähän diviin dynaamisesti
+    html.Div(id='recorder-container'),
     
-    html.P("Pidä mikrofonia pohjassa äänittääksesi."),
+    html.Div(id='status-message', style={'marginTop': '20px', 'fontWeight': 'bold'}),
+    html.Audio(id='audio-player', controls=True, style={'marginTop': '10px'})
     
-    dash_audio_recorder.DashAudioRecorder(
-        id='audio-recorder',
-        audioType='audio/webm',
-        visualMode='fullscreen',  # Aalto koko ruudulla
-        recordMode='hold'         # 'hold' toimii nyt oikein!
-    ),
-    
-    # Store, johon data menee aina käytettäväksi myöhemmin
-    dcc.Store(id='audio-memory-store'),
-    
-    html.Div(id='status-message', style={'marginTop': '40px', 'marginBottom': '20px', 'fontWeight': 'bold'}),
-    
-    html.Audio(id='audio-player', controls=True, style={'display': 'none'})
-    
-], style={'padding': '50px', 'textAlign': 'center', 'fontFamily': 'sans-serif'})
+], style={'padding': '40px', 'fontFamily': 'sans-serif', 'maxWidth': '600px', 'margin': '0 auto'})
 
 
+# Tämä callback luo äänittimen uudestaan aina, kun muutat filttereiden asetuksia
 @callback(
-    Output('audio-memory-store', 'data'),
-    Output('audio-player', 'src'),
-    Output('audio-player', 'style'),
-    Output('status-message', 'children'),
-    Input('audio-recorder', 'audioData'),
-    State('save-mode', 'value') # Otetaan valintakytkimen arvo mukaan State-muuttujana
+    Output('recorder-container', 'children'),
+    Input('audio-filters', 'value')
 )
-def process_audio(audio_data, save_mode):
-    if audio_data is None:
-        return None, "", {'display': 'none'}, "Odotetaan äänitystä..."
-
-    status_text = ""
-
-    # Jos käyttäjä valitsi kovalevylle tallennuksen
-    if save_mode == 'disk':
-        try:
-            header, encoded = audio_data.split(",", 1)
-            decoded_audio = base64.b64decode(encoded)
-            
-            # Päätellään pääte
-            extension = "webm"
-            if "mp4" in header:
-                extension = "mp4"
-                
-            filename = f"tallennettu_aani.{extension}"
-            with open(filename, "wb") as f:
-                f.write(decoded_audio)
-                
-            status_text = f"Äänitys tallennettu kovalevylle tiedostoksi: {os.path.abspath(filename)}"
-        except Exception as e:
-            status_text = f"Virhe tiedoston tallennuksessa: {e}"
-            
-    # Jos valittiin nopea muisti (Store)
-    else:
-        status_text = "Äänitys valmis! Käsitelty vain muistissa (ei luotu tiedostoa)."
-
-    # Palautetaan data aina Storelle ja HTML-soittimelle, riippumatta tallennustavasta
-    return (
-        audio_data,                         # dcc.Store
-        audio_data,                         # html.Audio src
-        {'display': 'inline-block'},        # html.Audio style
-        status_text                         # Ilmoitusteksti
+def update_recorder(filters):
+    return dash_audio_recorder.DashAudioRecorder(
+        id='audio-recorder',
+        visualMode='fullscreen', # Pidetään pienenä testin ajan
+        recordMode='hold',
+        echoCancellation='echo' in filters,
+        noiseSuppression='noise' in filters,
+        autoGainControl='gain' in filters
     )
+
+# Tämä callback ottaa äänen vastaan ja laittaa sen soittimeen
+@callback(
+    Output('audio-player', 'src'),
+    Output('status-message', 'children'),
+    Input('audio-recorder', 'audioData')
+)
+def process_audio(audio_data):
+    if not audio_data:
+        return "", "Paina mikrofonia ja puhu jotain testataksesi."
+    
+    return audio_data, "Äänitys valmis! Kuuntele erot laittamalla filttereitä päälle/pois."
 
 if __name__ == '__main__':
     app.run(debug=True)
