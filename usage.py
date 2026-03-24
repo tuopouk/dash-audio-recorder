@@ -4,25 +4,25 @@ from dash import Dash, html, dcc, Input, Output, callback
 app = Dash(__name__)
 
 app.layout = html.Div([
-    html.H2("Äänenlaadun testipenkki (Whisper-optimointi)"),
-    html.P("Testaa, miltä ääni kuulostaa selaimen suodattimilla ja ilman (raakana)."),
+    html.H2("Audio Quality Test Bench (Whisper Optimization)"),
+    html.P("Test how the audio sounds with and without browser filters (raw audio)."),
     
-    # Valikot filttereiden päälle/pois laittamiseen
+    # Selection menus for toggling filters
     html.Div([
-        html.Label("Selaimen suodattimet (Kokeile ottaa kaikki pois Whisperille):", style={'fontWeight': 'bold'}),
+        html.Label("Browser Filters (Try disabling all for Whisper):", style={'fontWeight': 'bold'}),
         dcc.Checklist(
             id='audio-filters',
             options=[
-                {'label': ' Kaiunpoisto (Echo Cancellation)', 'value': 'echo'},
-                {'label': ' Taustakohinan vaimennus (Noise Suppression)', 'value': 'noise'},
-                {'label': ' Automaattinen tasonsäätö (Auto Gain)', 'value': 'gain'}
+                {'label': ' Echo Cancellation', 'value': 'echo'},
+                {'label': ' Noise Suppression', 'value': 'noise'},
+                {'label': ' Auto Gain Control', 'value': 'gain'}
             ],
-            value=[], # Oletuksena tyhjä = kaikki filtterit POIS (raaka ääni)
+            value=[], # Default empty = all filters OFF (raw audio)
             style={'marginTop': '10px'}
         )
     ], style={'backgroundColor': '#f0f0f0', 'padding': '15px', 'borderRadius': '8px', 'marginBottom': '20px'}),
 
-    # Komponentti ladataan tähän diviin dynaamisesti
+    # The recorder component is loaded into this div dynamically
     html.Div(id='recorder-container'),
     
     html.Div(id='status-message', style={'marginTop': '20px', 'fontWeight': 'bold'}),
@@ -31,7 +31,7 @@ app.layout = html.Div([
 ], style={'padding': '40px', 'fontFamily': 'sans-serif', 'maxWidth': '600px', 'margin': '0 auto'})
 
 
-# Tämä callback luo äänittimen uudestaan aina, kun muutat filttereiden asetuksia
+# This callback recreates the recorder whenever filter settings are changed
 @callback(
     Output('recorder-container', 'children'),
     Input('audio-filters', 'value')
@@ -39,14 +39,14 @@ app.layout = html.Div([
 def update_recorder(filters):
     return dash_audio_recorder.DashAudioRecorder(
         id='audio-recorder',
-        visualMode='fullscreen', # Pidetään pienenä testin ajan
+        visualMode='fullscreen', 
         recordMode='hold',
         echoCancellation='echo' in filters,
         noiseSuppression='noise' in filters,
         autoGainControl='gain' in filters
     )
 
-# Tämä callback ottaa äänen vastaan ja laittaa sen soittimeen
+# This callback receives the audio data and passes it to the player
 @callback(
     Output('audio-player', 'src'),
     Output('status-message', 'children'),
@@ -54,9 +54,9 @@ def update_recorder(filters):
 )
 def process_audio(audio_data):
     if not audio_data:
-        return "", "Paina mikrofonia ja puhu jotain testataksesi."
+        return "", "Press the microphone and speak to start testing."
     
-    return audio_data, "Äänitys valmis! Kuuntele erot laittamalla filttereitä päälle/pois."
+    return audio_data, "Recording complete! Listen to the differences by toggling filters."
 
 if __name__ == '__main__':
     app.run(debug=True)
