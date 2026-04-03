@@ -11,13 +11,15 @@ const MicIcon = ({ isRecording }) => (
 );
 
 const DashAudioRecorder = (props) => {
-    const { id, setProps, audioType, visualMode, recordMode, echoCancellation, noiseSuppression, autoGainControl } = props;
+    // 1. ADDED: streamMode (setting), audioStream (output), currentVolume (output)
+    const { id, setProps, audioType, visualMode, recordMode, echoCancellation, noiseSuppression, autoGainControl, streamMode } = props;
     const [isRecording, setIsRecording] = useState(false);
     
     const canvasRef = useRef(null);
     const mediaRecorderRef = useRef(null);
     const audioContextRef = useRef(null);
     const animationRef = useRef(null);
+    const volumeIntervalRef = useRef(null); // NEW: Interval for volume meter
     const chunksRef = useRef([]);
     const isPressingRef = useRef(false);
 
@@ -41,7 +43,6 @@ const DashAudioRecorder = (props) => {
         if (recordMode === 'hold') isPressingRef.current = true;
         
         try {
-            // TÄSSÄ UUSI TAIKA: Pyydetään mikrofonia joko raakana (AI:ta varten) tai suodatettuna
             const stream = await navigator.mediaDevices.getUserMedia({ 
                 audio: {
                     echoCancellation: echoCancellation,
@@ -64,33 +65,72 @@ const DashAudioRecorder = (props) => {
             let mimeType = audioType;
             if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = ''; 
 
-            // TÄSSÄ UUSI TAIKA 2: Pakotetaan korkea äänenlaatu (128 kbps), jotta Whisper saa tarkempaa dataa
             const recorderOptions = mimeType ? { mimeType } : {};
             recorderOptions.audioBitsPerSecond = 128000; 
 
             mediaRecorderRef.current = new MediaRecorder(stream, recorderOptions);
             chunksRef.current = [];
 
+            // 2. LOGIC SEPARATION: Stream vs. Normal Mode
             mediaRecorderRef.current.ondataavailable = (e) => {
-                if (e.data.size > 0) chunksRef.current.push(e.data);
+                if (e.data.size > 0) {
+                    if (streamMode) {
+                        // STREAM MODE: Send chunk immediately to Python via audioStream
+                        const reader = new FileReader();
+                        reader.readAsDataURL(e.data);
+                        reader.onloadend = () => {
+                            if (setProps) setProps({ audioStream: reader.result });
+                        };
+                    } else {
+                        // NORMAL MODE: Collect chunks in memory
+                        chunksRef.current.push(e.data);
+                    }
+                }
             };
 
+            // 3. FINALIZATION: Only send complete data if not in stream mode
             mediaRecorderRef.current.onstop = () => {
-                const blob = new Blob(chunksRef.current, { type: mimeType || 'audio/webm' });
-                const reader = new FileReader();
-                reader.readAsDataURL(blob);
-                reader.onloadend = () => {
-                    if (setProps) setProps({ audioData: reader.result });
-                };
+                if (!streamMode) {
+                    const blob = new Blob(chunksRef.current, { type: mimeType || 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.readAsDataURL(blob);
+                    reader.onloadend = () => {
+                        if (setProps) setProps({ audioData: reader.result });
+                    };
+                }
             };
 
-            mediaRecorderRef.current.start();
+            // NEW: Measure volume and send it to Python (0-128 scale)
+            volumeIntervalRef.current = setInterval(() => {
+                if (!analyser) return;
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                analyser.getByteTimeDomainData(dataArray);
+                
+                let maxVolume = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    let v = Math.abs(dataArray[i] - 128); // Calculate absolute difference from center line (128)
+                    if (v > maxVolume) maxVolume = v;
+                }
+                
+                if (setProps) setProps({ currentVolume: maxVolume });
+            }, 100); // Trigger 10 times per second
+
+            // 4. START: Handle chunk intervals if streaming
+            if (streamMode) {
+                // Request data every 150ms
+                mediaRecorderRef.current.start(150); 
+            } else {
+                // Let it record until stopped
+                mediaRecorderRef.current.start();
+            }
+            
             setIsRecording(true);
             drawWaveform(analyser);
 
         } catch (err) {
-            console.error("Virhe mikrofonin käytössä:", err);
-            alert("Salli mikrofonin käyttö selaimessa.");
+            console.error("Error accessing microphone:", err);
+            alert("Please allow microphone access in your browser.");
         }
     };
 
@@ -101,6 +141,7 @@ const DashAudioRecorder = (props) => {
             setIsRecording(false);
             if (audioContextRef.current) audioContextRef.current.close();
             if (animationRef.current) cancelAnimationFrame(animationRef.current);
+            if (volumeIntervalRef.current) clearInterval(volumeIntervalRef.current); // NEW: Clear interval
         }
     };
 
@@ -192,7 +233,7 @@ const DashAudioRecorder = (props) => {
             <button 
                 {...buttonEvents}
                 style={buttonStyle}
-                title={recordMode === 'hold' ? "Pidä pohjassa äänittääksesi" : "Klikkaa äänittääksesi"}>
+                title={recordMode === 'hold' ? "Hold to record" : "Click to record"}>
                 <MicIcon isRecording={isRecording} />
             </button>
             {(isRecording || !isFull) && (
@@ -202,26 +243,33 @@ const DashAudioRecorder = (props) => {
     );
 }
 
-// Oletuksena otetaan selaimen suodattimet POIS PÄÄLTÄ tekoälyä varten
+// 5. Default properties (backward compatibility maintained)
 DashAudioRecorder.defaultProps = {
     audioData: null,
+    audioStream: null,     
+    currentVolume: 0,      // NEW
     audioType: 'audio/webm',
     visualMode: 'fullscreen',
     recordMode: 'hold',
     echoCancellation: false,
     noiseSuppression: false,
-    autoGainControl: false
+    autoGainControl: false,
+    streamMode: false      // NEW (defaults to normal recording)
 };
 
+// 6. Property types
 DashAudioRecorder.propTypes = {
     id: PropTypes.string,
     audioData: PropTypes.string,
+    audioStream: PropTypes.string, 
+    currentVolume: PropTypes.number, // NEW
     audioType: PropTypes.string,
     visualMode: PropTypes.string,
     recordMode: PropTypes.string,
     echoCancellation: PropTypes.bool,
     noiseSuppression: PropTypes.bool,
     autoGainControl: PropTypes.bool,
+    streamMode: PropTypes.bool,    
     setProps: PropTypes.func
 };
 

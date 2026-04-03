@@ -25,15 +25,21 @@ Keyword arguments:
 
 - audioData (string; optional)
 
+- audioStream (string; optional)
+
 - audioType (string; default 'audio/webm')
 
 - autoGainControl (boolean; default False)
+
+- currentVolume (number; default 0)
 
 - echoCancellation (boolean; default False)
 
 - noiseSuppression (boolean; default False)
 
 - recordMode (string; default 'hold')
+
+- streamMode (boolean; default False)
 
 - visualMode (string; default 'fullscreen')"""
     _children_props: typing.List[str] = []
@@ -46,17 +52,20 @@ Keyword arguments:
         self,
         id: typing.Optional[typing.Union[str, dict]] = None,
         audioData: typing.Optional[str] = None,
+        audioStream: typing.Optional[str] = None,
+        currentVolume: typing.Optional[NumberType] = None,
         audioType: typing.Optional[str] = None,
         visualMode: typing.Optional[str] = None,
         recordMode: typing.Optional[str] = None,
         echoCancellation: typing.Optional[bool] = None,
         noiseSuppression: typing.Optional[bool] = None,
         autoGainControl: typing.Optional[bool] = None,
+        streamMode: typing.Optional[bool] = None,
         **kwargs
     ):
-        self._prop_names = ['id', 'audioData', 'audioType', 'autoGainControl', 'echoCancellation', 'noiseSuppression', 'recordMode', 'visualMode']
+        self._prop_names = ['id', 'audioData', 'audioStream', 'audioType', 'autoGainControl', 'currentVolume', 'echoCancellation', 'noiseSuppression', 'recordMode', 'streamMode', 'visualMode']
         self._valid_wildcard_attributes =            []
-        self.available_properties = ['id', 'audioData', 'audioType', 'autoGainControl', 'echoCancellation', 'noiseSuppression', 'recordMode', 'visualMode']
+        self.available_properties = ['id', 'audioData', 'audioStream', 'audioType', 'autoGainControl', 'currentVolume', 'echoCancellation', 'noiseSuppression', 'recordMode', 'streamMode', 'visualMode']
         self.available_wildcard_properties =            []
         _explicit_args = kwargs.pop('_explicit_args')
         _locals = locals()

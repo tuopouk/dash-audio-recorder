@@ -10,9 +10,10 @@
 }
 
 \usage{
-''DashAudioRecorder(id=NULL, audioData=NULL, audioType=NULL,
-autoGainControl=NULL, echoCancellation=NULL,
-noiseSuppression=NULL, recordMode=NULL, visualMode=NULL)
+''DashAudioRecorder(id=NULL, audioData=NULL, audioStream=NULL, audioType=NULL,
+autoGainControl=NULL, currentVolume=NULL,
+echoCancellation=NULL, noiseSuppression=NULL,
+recordMode=NULL, streamMode=NULL, visualMode=NULL)
 }
 
 \arguments{
@@ -20,15 +21,21 @@ noiseSuppression=NULL, recordMode=NULL, visualMode=NULL)
 
 \item{audioData}{Character. }
 
+\item{audioStream}{Character. }
+
 \item{audioType}{Character. }
 
 \item{autoGainControl}{Logical. }
+
+\item{currentVolume}{Numeric. }
 
 \item{echoCancellation}{Logical. }
 
 \item{noiseSuppression}{Logical. }
 
 \item{recordMode}{Character. }
+
+\item{streamMode}{Logical. }
 
 \item{visualMode}{Character. }
 }
